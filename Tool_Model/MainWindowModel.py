@@ -16,8 +16,9 @@ sys.path.insert(0, str(Path(os.getcwd())))
 import detect
 
 class YoloThread(QThread):
-    update_frame = pyqtSignal(object)
-    
+    update_frame  = pyqtSignal(object)
+    update_counts = pyqtSignal(int, int)  # good_count, damaged_count
+
     def __init__(self, source='0', weights='trained_iqc_best.pt'):
         super(YoloThread, self).__init__()
         self.source = str(source)
@@ -25,21 +26,28 @@ class YoloThread(QThread):
         self.running = True
 
     def run(self):
-        # Callback to be passed to detect.py
+        # Frame callback — sends rendered frames to the GUI
         def frame_callback(im0):
             if self.running:
                 self.update_frame.emit(im0.copy())
             else:
-                raise Exception("Stop YOLO") # Hacky way to break out of the YOLO loop cleanly
-                
+                raise Exception("Stop YOLO")
+
+        # Count callback — sends live good/damaged totals to the GUI
+        def count_callback(good, damaged):
+            if self.running:
+                self.update_counts.emit(good, damaged)
+            else:
+                raise Exception("Stop YOLO")
+
         try:
-            # We use the custom weights by default, and provide our callback
             detect.run(
-                weights=self.weights, 
+                weights=self.weights,
                 source=self.source,
                 frame_callback=frame_callback,
-                nosave=True, # Don't save output video locally to avoid clutter
-                view_img=False # Do not pop up a separate cv2.imshow window
+                count_callback=count_callback,
+                nosave=True,
+                view_img=False
             )
         except Exception as e:
             print("YOLO detection loop exit:", e)
@@ -101,7 +109,12 @@ class MainWindowClass(QMainWindow):
             
         self.yolo_thread = YoloThread(source=self.current_source, weights=weights_path)
         self.yolo_thread.update_frame.connect(self.set_image)
+        self.yolo_thread.update_counts.connect(self.set_counts)  # wire up live count display
         self.yolo_thread.start()
+
+        # Reset counters in the UI when a new detection session starts
+        self.txtGoodPackage.setText('0')
+        self.txtDamagedPackage.setText('0')
 
     def stop_detection(self):
         if self.yolo_thread is not None:
@@ -125,6 +138,14 @@ class MainWindowClass(QMainWindow):
             self.lblscreen1.setPixmap(QPixmap.fromImage(p))
         except Exception as e:
             print(f"Error drawing frame: {e}")
+
+    def set_counts(self, good, damaged):
+        """Update the Good/Damaged package counters live in the GUI"""
+        try:
+            self.txtGoodPackage.setText(str(good))
+            self.txtDamagedPackage.setText(str(damaged))
+        except Exception as e:
+            print(f"Error updating counts: {e}")
 
     def ExitProgram(self):
         self.stop_detection()
