@@ -7,6 +7,8 @@ from PyQt5.uic import loadUi
 from PyQt5.QtCore import QThread, pyqtSignal, Qt
 from PyQt5.QtGui import QImage, QPixmap
 import cv2
+import serial
+import serial.tools.list_ports
 
 from Tool_Model.GlobalVariables import mainWindowUI
 
@@ -19,10 +21,11 @@ class YoloThread(QThread):
     update_frame  = pyqtSignal(object)
     update_counts = pyqtSignal(int, int)  # good_count, damaged_count
 
-    def __init__(self, source='0', weights='trained_iqc_best.pt'):
+    def __init__(self, source='0', weights='trained_iqc_best.pt', arduino_serial=None):
         super(YoloThread, self).__init__()
         self.source = str(source)
         self.weights = Path(weights)
+        self.arduino_serial = arduino_serial
         self.running = True
 
     def run(self):
@@ -46,6 +49,7 @@ class YoloThread(QThread):
                 source=self.source,
                 frame_callback=frame_callback,
                 count_callback=count_callback,
+                arduino_serial=self.arduino_serial,
                 nosave=True,
                 view_img=False
             )
@@ -65,7 +69,9 @@ class MainWindowClass(QMainWindow):
             
             # Additional UI Setup
             self.yolo_thread = None
+            self.arduino_serial = None
             self.current_source = '0' # default to webcam
+            self.arduino_port = 'COM6' # Default port, user can change this
             
             # Connect the Run button (named pushButton in UI)
             self.pushButton.clicked.connect(self.start_detection)
@@ -107,7 +113,16 @@ class MainWindowClass(QMainWindow):
         if not os.path.exists(weights_path):
             weights_path = 'yolov5s.pt' # Fallback
             
-        self.yolo_thread = YoloThread(source=self.current_source, weights=weights_path)
+        # Attempt to initialize Serial communication with Arduino
+        try:
+            if self.arduino_serial is None or not self.arduino_serial.is_open:
+                self.arduino_serial = serial.Serial(self.arduino_port, 9600, timeout=1)
+                print(f"Connected to Arduino on {self.arduino_port}")
+        except Exception as e:
+            print(f"Warning: Could not connect to Arduino on {self.arduino_port}. {e}")
+            self.arduino_serial = None
+
+        self.yolo_thread = YoloThread(source=self.current_source, weights=weights_path, arduino_serial=self.arduino_serial)
         self.yolo_thread.update_frame.connect(self.set_image)
         self.yolo_thread.update_counts.connect(self.set_counts)  # wire up live count display
         self.yolo_thread.start()
@@ -121,6 +136,12 @@ class MainWindowClass(QMainWindow):
             self.yolo_thread.stop()
             self.yolo_thread.wait(2000) # wait 2 seconds maximum
             self.yolo_thread = None
+            
+            if self.arduino_serial is not None:
+                self.arduino_serial.close()
+                self.arduino_serial = None
+                print("Arduino serial closed.")
+                
             print("Detection stopped.")
 
     def set_image(self, cv_img):

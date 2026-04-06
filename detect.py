@@ -98,6 +98,7 @@ def run(
         view_img=False,
         frame_callback=None,
         count_callback=None,   # called each frame with (good_count, damaged_count)
+        arduino_serial=None,   # Serial object for signaling
         **kwargs               # accept but ignore extra parameters
 ):
     weights = str(weights)
@@ -169,6 +170,14 @@ def run(
                     total_good += 1
                 else:
                     total_damaged += 1
+                    # Send signal to Arduino when defect is detected
+                    if arduino_serial and arduino_serial.is_open:
+                        try:
+                            arduino_serial.write(b'D') # 'D' for Damaged
+                            print("SENT: 'D' to Arduino")
+                        except Exception as e:
+                            print(f"Serial communication error: {e}")
+
                 tracker.countedIDs.add(objectID)
 
         # Notify GUI of updated counts

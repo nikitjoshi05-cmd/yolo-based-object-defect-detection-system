@@ -1,11 +1,29 @@
 # A YOLO-based Real-time Packaging Defect Detection System
 
-This repository contains source code, program, and experimental results of the paper entitled 'A YOLO-based Real-time Packaging Defect Detection System'
+## Project Architecture & Workflow
 
+This project is an end-to-end automated quality control system that integrates machine learning with industrial hardware.
 
-**Abstract**
+### 1. Software Layer (The 'Brain')
+*   **Deep Learning**: Uses a custom-trained **YOLOv5** model to identify "Good" and "Damaged" packages in real-time.
+*   **Tracking**: Implements a **Centroid Tracking** algorithm (in `detect.py`) which assigns unique IDs to every package. This ensures that each package is only counted and processed once, even as it moves across the camera's view.
+*   **GUI**: Built with **PyQt5**, providing a real-time video feed, live damage counters, and controls to start/stop the system.
 
-Managing the quality of products is the primary concern in manufacturing production to benefit the business. There are numerous different approaches for improving the product quality management in manufacturing. Each approach has certain advantages and limitations, and the common goal is to bring the best efficiency in managing product quality in production lines. In this paper, we introduce our approach to creating a real-time packaging defect detection system based on deep learning techniques intending to automatically recognize defective packaged products in industrial quality control of packages. To be more precise, we present a flexible real-time defect detection system in helping classify product quality automatically based on the YOLO (You only look once) algorithm. The system can be easily integrated into factories, quickly deployed, and installed in production lines, helping to optimize efficiency and save operating costs.
+### 2. Communication Layer (The 'Nerve System')
+*   **Protocol**: Serial communication via USB (at 9600 baud) using the `pyserial` library.
+*   **Signal**: When a "Damaged" object is uniquely identified, the Python script sends a single byte trigger (`'D'`) to the Arduino.
+
+### 3. Hardware Layer (The 'Hand')
+*   **Controller**: An **Arduino Uno** running custom firmware that listens for the 'D' trigger.
+*   **Actuator**: A **Robotic Arm** (Servo-controlled) that:
+    1.  Moves to the object position.
+    2.  Waits for 2 seconds (as requested).
+    3.  Returns to its home position.
+
+### End-to-End Workflow summary:
+`Camera Input` -> `YOLOv5 Detection` -> `Object Tracking (Centroid)` -> `Defect Classification` -> `Serial Signal ('D')` -> `Arduino Processing` -> `Robotic Arm Action`
+
+---
 
 <p align="center">
   <img src="https://github.com/vuthithuhuyen/A-YOLO-based-Real-time-Packaging-Defect-Detection-System/blob/main/System_architecture.png" width="700">    
@@ -29,4 +47,29 @@ Managing the quality of products is the primary concern in manufacturing product
 <p align="center"><label>**The system GUI**</label></p>
 
 
-If you need any additional information, don't hesitate to contact me at thuhuyen (at) kyonggi dot ac dot kr
+## Project Architecture & Workflow
+
+This project is an end-to-end automated quality control system that integrates machine learning with industrial hardware.
+
+### 1. Software Layer (The 'Brain')
+*   **Deep Learning**: Uses a custom-trained **YOLOv5** model to identify "Good" and "Damaged" packages in real-time.
+*   **Tracking**: Implements a **Centroid Tracking** algorithm (in `detect.py`) which assigns unique IDs to every package. This ensures that each package is only counted and processed once, even as it moves across the camera's view.
+*   **GUI**: Built with **PyQt5**, providing a real-time video feed, live damage counters, and controls to start/stop the system.
+
+### 2. Communication Layer (The 'Nerve System')
+*   **Protocol**: Serial communication via USB (at 9600 baud) using the `pyserial` library.
+*   **Signal**: When a "Damaged" object is uniquely identified, the Python script sends a single byte trigger (`'D'`) to the Arduino.
+
+### 3. Hardware Layer (The 'Hand')
+*   **Controller**: An **Arduino Uno** running custom firmware that listens for the 'D' trigger.
+*   **Actuator**: A **Robotic Arm** (Servo-controlled) that:
+    1.  Moves to the object position.
+    2.  Waits for 2 seconds (as requested).
+    3.  Returns to its home position.
+
+### End-to-End Workflow summary:
+`Camera Input` -> `YOLOv5 Detection` -> `Object Tracking (Centroid)` -> `Defect Classification` -> `Serial Signal ('D')` -> `Arduino Processing` -> `Robotic Arm Action`
+
+---
+
+
